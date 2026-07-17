@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>糾結手指團｜指尖節奏遊戲</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { height:100%; }
+  body {
+    font-family:"Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
+    background:radial-gradient(ellipse at 50% 0%, #3b1535 0%, #1c0a1e 70%);
+    color:#ffe9f3;
+    display:flex; align-items:center; justify-content:center;
+    min-height:100vh; overflow:hidden;
+  }
+  #wrap { position:relative; width:min(96vw, calc(92vh * 0.75)); aspect-ratio:3/4; }
+  canvas {
+    width:100%; height:100%; display:block;
+    border-radius:18px;
+    box-shadow:0 0 40px rgba(255,120,190,.25), 0 0 120px rgba(255,190,120,.12);
+    touch-action:none;
+  }
+  .overlay {
+    position:absolute; inset:0; border-radius:18px;
+    background:linear-gradient(160deg, rgba(46,16,44,.96), rgba(28,10,30,.97));
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:11px; padding:20px; text-align:center; overflow-y:auto;
+    backdrop-filter: blur(4px);
+  }
+  .hidden { display:none; }
+  h1 {
+    font-size:clamp(34px, 7vmin, 52px); letter-spacing:6px;
+    background:linear-gradient(92deg,#ffb3d4 10%, #ffd98a 50%, #ffb3d4 90%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    text-shadow:0 0 30px rgba(255,150,200,.25);
+  }
+  .sub { color:#e8b6cf; font-size:clamp(13px,2.6vmin,16px); letter-spacing:2px; }
+  .label { color:#cf9ab8; font-size:13px; letter-spacing:3px; margin-top:6px; }
+  .songs { display:grid; grid-template-columns:1fr 1fr; gap:8px; width:min(370px,88%); }
+  .songBtn, .bigBtn, .speedBtn, .fileBtn {
+    cursor:pointer; border:1px solid rgba(255,170,210,.35);
+    background:rgba(255,150,200,.08); color:#ffe9f3;
+    border-radius:14px; padding:12px 16px; font-size:15px;
+    font-family:inherit; transition:all .15s;
+  }
+  .songBtn:hover, .bigBtn:hover, .fileBtn:hover { background:rgba(255,150,200,.22); transform:translateY(-1px); }
+  .songBtn { padding:10px 8px; }
+  .songBtn b { font-size:15px; letter-spacing:1px; }
+  .songBtn span { display:block; font-size:11px; color:#d9a8c4; margin-top:3px; }
+  .speedRow { display:flex; gap:8px; }
+  .speedBtn { padding:8px 18px; font-size:13px; border-radius:999px; }
+  .speedBtn.on { background:linear-gradient(92deg,#ff8fc0,#ffcf7a); color:#3a1030; font-weight:700; border-color:transparent; }
+  .bigBtn { font-size:17px; padding:13px 34px; letter-spacing:3px;
+    background:linear-gradient(92deg,#ff8fc0,#ffcf7a); color:#3a1030; font-weight:700; border:none; }
+  .keysHint { color:#c993b3; font-size:13px; letter-spacing:1px; line-height:1.9; }
+  .keysHint kbd {
+    display:inline-block; min-width:26px; padding:3px 7px; margin:0 2px;
+    border-radius:7px; border:1px solid rgba(255,190,220,.4);
+    background:rgba(255,180,215,.12); font-family:inherit; font-weight:700;
+  }
+  #rankBig {
+    font-size:clamp(48px,11vmin,76px); font-weight:900; line-height:1.15; letter-spacing:6px;
+    background:linear-gradient(180deg,#ffe08a,#ff8fc0);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 0 22px rgba(255,180,140,.4));
+  }
+  #resStats { font-size:15px; line-height:2; color:#f4cfe2; }
+  #resStats b { color:#ffd98a; }
+  #resComment { color:#ffc7de; font-size:14px; max-width:300px; line-height:1.7; }
+  #pauseBtn {
+    position:absolute; top:10px; right:12px; z-index:5;
+    width:38px; height:38px; border-radius:50%; border:1px solid rgba(255,190,220,.35);
+    background:rgba(40,14,40,.55); color:#ffd7e8; font-size:15px; cursor:pointer;
+  }
+  #loadingMsg { color:#ffd98a; font-size:14px; letter-spacing:1px; }
+  input[type=file] { display:none; }
+  .btnRow { display:flex; gap:12px; }
+  #resUpload { display:flex; gap:8px; align-items:center; justify-content:center; }
+  #playerName {
+    background:rgba(255,150,200,.08); border:1px solid rgba(255,170,210,.35);
+    border-radius:12px; padding:9px 14px; color:#ffe9f3; font-size:14px;
+    text-align:center; width:min(200px,56vw); font-family:inherit; outline:none;
+  }
+  #playerName:focus { border-color:#ff9ed0; box-shadow:0 0 12px rgba(255,150,200,.25); }
+  #playerName::placeholder { color:#a87b96; }
+  #resRank { color:#ffd98a; font-size:14px; letter-spacing:1px; }
+  #boardList { width:min(340px,88%); font-size:14px; max-height:46%; overflow-y:auto; }
+  .brow {
+    display:flex; align-items:center; gap:8px;
+    padding:7px 10px; border-bottom:1px solid rgba(255,190,220,.12);
+  }
+  .brow .medal { width:34px; text-align:center; flex:none; }
+  .brow .bname { flex:1; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .brow .bscore { color:#ffd98a; font-weight:700; }
+  .brow .bacc { color:#c993b3; font-size:12px; width:52px; text-align:right; flex:none; }
+  .tabBtn { padding:7px 12px; font-size:12px; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="cv" width="480" height="640"></canvas>
+  <button id="pauseBtn" class="hidden" title="暫停">❚❚</button>
+
+  <div id="menu" class="overlay">
+    <h1>糾結手指團</h1>
+    <div class="sub">指尖節奏遊戲 ✦ 手速快狠準</div>
+    <div class="label">— 選 一 首 歌 —</div>
+    <div class="songs" id="songList"></div>
+    <button class="fileBtn" id="boardBtn">🏆 排行榜</button>
+    <div class="label">— 下 落 速 度 —</div>
+    <div class="speedRow">
+      <button class="speedBtn" data-sp="0">優雅</button>
+      <button class="speedBtn on" data-sp="1">標準</button>
+      <button class="speedBtn" data-sp="2">快手</button>
+    </div>
+    <div class="keysHint">
+      鍵盤 <kbd>S</kbd><kbd>D</kbd><kbd>F</kbd><kbd>空白</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> 對應七條軌道<br>
+      音符碰到判定線的瞬間按下去，也可以直接點軌道
+    </div>
+  </div>
+
+  <div id="pauseOv" class="overlay hidden">
+    <h1 style="font-size:40px;">暫 停 中</h1>
+    <div class="btnRow">
+      <button class="bigBtn" id="resumeBtn">繼續</button>
+      <button class="songBtn" id="quitBtn" style="padding:13px 24px;">回主選單</button>
+    </div>
+  </div>
+
+  <div id="result" class="overlay hidden">
+    <div class="label">— 成 績 結 算 —</div>
+    <div id="rankBig">S</div>
+    <div id="resStats"></div>
+    <div id="resComment"></div>
+    <div id="resUpload" class="hidden">
+      <input id="playerName" maxlength="10" placeholder="留個名號（中文也行）">
+      <button class="songBtn" id="submitBtn" style="padding:9px 18px;">上榜</button>
+    </div>
+    <div id="resRank"></div>
+    <div class="btnRow">
+      <button class="bigBtn" id="retryBtn">再玩一次</button>
+      <button class="songBtn" id="backBtn" style="padding:13px 24px;">回主選單</button>
+    </div>
+  </div>
+
+  <div id="board" class="overlay hidden">
+    <div class="label">— 🏆 全 球 排 行 榜 —</div>
+    <div class="speedRow" id="boardTabs" style="flex-wrap:wrap;justify-content:center;"></div>
+    <div id="boardList">載入中…</div>
+    <button class="songBtn" id="boardBack" style="padding:11px 26px;">回主選單</button>
+  </div>
+
+</div>
+
+<script>
+"use strict";
+/* ============ 基本設定 ============ */
+const cv = document.getElementById('cv');
+const ctx2d = cv.getContext('2d');
+const W = 480, H = 640;
+const LANES = 7;
+const HIT_Y = 552;
+const LANE_X0 = 23, LANE_W = 62;           // 七軌起點與寬度
+const KEYS = ['KeyS','KeyD','KeyF','Space','KeyJ','KeyK','KeyL'];
+const KEY_LABELS = ['S','D','F','空白','J','K','L'];
+const LANE_COLORS = ['#ff8fc0','#c9a3ff','#ff8fc0','#ffd06e','#ff8fc0','#c9a3ff','#ff8fc0'];
+const SPEEDS = [300, 420, 560];            // px / 秒
+const PERFECT_WIN = 0.065, GOOD_WIN = 0.135, MISS_LATE = 0.16;
+
+let speedIdx = 1;
+let actx = null, masterGain = null, noiseBuf = null;
+let state = 'menu';                        // menu / play / pause / result
+let notes = [], synthEvents = [], evPtr = 0;
+let startTime = 0, songDuration = 0, customSource = null, customBuffer = null;
+let currentSong = null;                    // {type:'synth', cfg} 或 {type:'custom', name}
+let score = 0, combo = 0, maxCombo = 0, cnt = {P:0, G:0, M:0};
+let popups = [], laneFlash = [0,0,0,0], laneDown = [false,false,false,false];
+let bgSparks = [];
+let ended = false;
+let currentBpm = 120, missFlashT = 0;
+let lastName = '', submitted = false;
+
+/* ============ 雲端排行榜 ============ */
+const SB_URL = 'https://spdvvafvzlbfmulhoejt.supabase.co';
+const SB_KEY = 'sb_publishable_ynDo4_pTj_1wav2n8GRQCA_F8BuWB8q';
+const SB_HEADERS = { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' };
+
+async function fetchTop(song, limit){
+  const u = SB_URL + '/rest/v1/finger_scores?select=name,score,acc,max_combo'
+          + '&song=eq.' + encodeURIComponent(song)
+          + '&order=score.desc,created_at.asc&limit=' + (limit || 10);
+  const r = await fetch(u, { headers: SB_HEADERS });
+  if (!r.ok) throw new Error('fetch failed');
+  return r.json();
+}
+async function submitScore(row){
+  const r = await fetch(SB_URL + '/rest/v1/finger_scores', {
+    method: 'POST',
+    headers: Object.assign({ Prefer: 'return=minimal' }, SB_HEADERS),
+    body: JSON.stringify(row)
+  });
+  return r.ok;
+}
+async function fetchRank(song, myScore){
+  const u = SB_URL + '/rest/v1/finger_scores?select=id'
+          + '&song=eq.' + encodeURIComponent(song) + '&score=gt.' + myScore;
+  const r = await fetch(u, { headers: Object.assign({ Prefer: 'count=exact', Range: '0-0' }, SB_HEADERS) });
+  const cr = r.headers.get('content-range');
+  const total = cr ? parseInt(cr.split('/')[1], 10) : NaN;
+  return isNaN(total) ? null : total + 1;
+}
+
+/* ============ 內建歌曲 ============ */
+const SONGS = [
+  { name:'指尖初戀', sub:'流行抒情 ・ 拍速 92', bpm:92,  bars:26, seed:7,  style:'pop', tmpl:0,
+    prog:[0,7,9,5], snares:[4,12], hatStep:2, hat16:false,
+    lead:'square', leadVol:0.12, bassType:'triangle', bassVol:0.3 },
+  { name:'閃亮指奏', sub:'經典流行 ・ 拍速 120', bpm:120, bars:34, seed:21, style:'pop', tmpl:1,
+    prog:[9,5,0,7], snares:[4,12], hatStep:2, hat16:false,
+    lead:'square', leadVol:0.12, bassType:'triangle', bassVol:0.3 },
+  { name:'和風指語', sub:'日式風情 ・ 拍速 100', bpm:100, bars:28, seed:88, style:'walk', density:0.5,
+    kicks:[0,10], snares:[8], bassSteps:[0,8], hatStep:4, hat16:false,
+    scale:[0,2,3,7,8], chords:[0,0,5,0], lead:'triangle', leadVol:0.24 },
+  { name:'指舞華爾滋', sub:'三拍優雅 ・ 拍速 132', bpm:132, bars:50, seed:42, style:'pop', tmpl:2, spb:12,
+    prog:[0,9,5,7], snares:[4,8], hatStep:2, hat16:false,
+    lead:'sine', leadVol:0.2, bassType:'triangle', bassVol:0.3 },
+  { name:'8-bit 電指', sub:'像素電玩 ・ 拍速 136', bpm:136, bars:34, seed:63, style:'pop', tmpl:3,
+    prog:[9,7,5,7], snares:[4,12], hatStep:2, hat16:true,
+    lead:'square', leadVol:0.11, bassType:'square', bassVol:0.15 },
+  { name:'十指風暴', sub:'快手挑戰 ・ 拍速 148', bpm:148, bars:42, seed:5,  style:'pop', tmpl:3,
+    prog:[9,5,7,4], snares:[4,12], hatStep:2, hat16:true,
+    lead:'square', leadVol:0.12, bassType:'triangle', bassVol:0.3 },
+];
+
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const midiF = m => 440 * Math.pow(2, (m - 69) / 12);
+const SCALE = [0, 2, 4, 7, 9];  // 大調五聲音階
+
+/* ============ 流行作曲引擎 ============ */
+const MAJOR7 = [0,2,4,5,7,9,11];                     // C 大調七音
+const DEG_OF = {0:0, 2:1, 4:2, 5:3, 7:4, 9:5, 11:6}; // 和弦根音 → 音階級數
+const TRIAD  = {0:[0,4,7], 5:[0,4,7], 7:[0,4,7], 2:[0,3,7], 4:[0,3,7], 9:[0,3,7], 11:[0,3,6]};
+const TMPLS = [
+  { verse:[0,4,8,12,16,20,24],    chorus:[0,4,6,8,12,16,20,22,24,28] },
+  { verse:[0,4,8,14,16,20,24],    chorus:[0,2,4,8,12,14,16,18,20,24,28] },
+  { verse:[0,4,8,12,16,20],       chorus:[0,4,6,8,12,16,18,20] },            // 12 步華爾滋
+  { verse:[0,4,8,10,16,20,24,26], chorus:[0,2,4,6,8,12,14,16,18,20,22,24,28] },
+];
+function degMidi(d){
+  const o = Math.floor(d/7), k = ((d%7)+7)%7;
+  return 72 + o*12 + MAJOR7[k];
+}
+/* 旋律句：小節頭跟句尾一定落在和弦內音，中間級進走動——流行歌的好記公式 */
+function makePhrase(rng, stepsArr, spb){
+  const CT = [0,2,4];
+  let deg = CT[Math.floor(rng()*3)];
+  return stepsArr.map((s, i) => {
+    if (s % spb === 0 || i === stepsArr.length - 1) deg = CT[Math.floor(rng()*3)];
+    else deg = Math.max(-3, Math.min(8, deg + [-2,-1,-1,0,1,1,2][Math.floor(rng()*7)]));
+    return { s, deg };
+  });
+}
+function generatePop(cfg){
+  const rng = mulberry32(cfg.seed);
+  const step = 60 / cfg.bpm / 4;
+  const spb = cfg.spb || 16;
+  const prog = cfg.prog;
+  const waltz = spb === 12;
+  const ev = [], nts = [];
+  const tmpl = TMPLS[cfg.tmpl];
+  const phraseA = makePhrase(rng, tmpl.verse, spb);   // 主歌句
+  const phraseB = makePhrase(rng, tmpl.chorus, spb);  // 副歌句（重複到洗腦）
+  const totalBlocks = Math.ceil((cfg.bars - 2) / 8);
+  const isVerseBlock = bi => bi === 0 || (bi === 2 && totalBlocks > 3);
+  const laneOfD = d => (((d + 3) % 7) + 7) % 7;   // 級數環繞七軌，音階走到哪手指跟到哪
+
+  for (let b = 0; b < cfg.bars; b++){
+    const bar0 = b * spb * step;
+    const root = prog[b % 4];
+    const intro = b < 2;
+    const chorus = !intro && !isVerseBlock(Math.floor((b - 2) / 8));
+    // 鼓組：副歌四踩大鼓、Hi-hat 變密，能量往上疊
+    const kicks = waltz ? [0] : (chorus ? [0,4,8,12] : [0,8]);
+    for (const s of kicks) ev.push({ t: bar0 + s*step, type:'kick' });
+    if (!intro){
+      for (const s of cfg.snares) if (s < spb) ev.push({ t: bar0 + s*step, type:'snare' });
+    }
+    const hs = chorus ? (cfg.hat16 ? 1 : 2) : cfg.hatStep;
+    for (let s = 0; s < spb; s += hs) ev.push({ t: bar0 + s*step, type:'hat' });
+    // 貝斯
+    if (!intro){
+      const bs = waltz ? [0] : (chorus ? (cfg.hat16 ? [0,2,4,6,8,10,12,14] : [0,4,8,12]) : [0,8]);
+      for (const s of bs){
+        if (s < spb) ev.push({ t: bar0 + s*step, type:'bass', f: midiF(36 + root),
+                               d: step*3.2, w: cfg.bassType, v: cfg.bassVol });
+      }
+    }
+    // 和弦墊底（流行鋼琴感；華爾滋是蹦恰恰的恰恰）
+    const triad = TRIAD[root] || [0,4,7];
+    const stabs = intro ? [0] : (waltz ? [4,8] : (chorus ? [0,4,8,12] : [0]));
+    for (const s of stabs){
+      if (s >= spb) continue;
+      const dur = stabs.length === 1 ? spb*step*0.9 : step*3.2;
+      for (const iv of triad){
+        ev.push({ t: bar0 + s*step, type:'lead', f: midiF(60 + root + iv), d: dur, w:'triangle', v:0.055 });
+      }
+    }
+  }
+  // 旋律：兩小節一句，主歌 A 句、副歌 B 句
+  for (let b = 2; b + 1 < cfg.bars; b += 2){
+    const bi = Math.floor((b - 2) / 8);
+    const verse = isVerseBlock(bi);
+    const phrase = verse ? phraseA : phraseB;
+    const lift = verse ? 0 : 2;                       // 副歌整句抬高，情緒跟著上去
+    for (const it of phrase){
+      if (verse && rng() < 0.12) continue;            // 主歌留一點呼吸
+      const bar = b + Math.floor(it.s / spb);
+      const root = prog[bar % 4];
+      const d = Math.max(-3, Math.min(9, (DEG_OF[root] || 0) + it.deg + lift));
+      const t = b * spb * step + it.s * step;
+      ev.push({ t, type:'lead', f: midiF(degMidi(d)), d: step*1.9, w: cfg.lead, v: cfg.leadVol });
+      nts.push({ t, lane: laneOfD(d + Math.floor((b - 2) / 2)) });  // 每句輪換起點，七軌雨露均霑
+    }
+  }
+  // 前奏熱身音符
+  nts.push({ t: spb * step, lane: 3 });
+  nts.push({ t: spb * step + Math.floor(spb/2) * step, lane: 3 });
+  // 收尾和弦
+  const endT = cfg.bars * spb * step;
+  const endTriad = TRIAD[prog[0]] || [0,4,7];
+  ev.push({ t: endT, type:'bass', f: midiF(36 + prog[0]), d: 1.8, w: cfg.bassType, v: cfg.bassVol });
+  for (const iv of endTriad) ev.push({ t: endT, type:'lead', f: midiF(60 + prog[0] + iv), d: 1.8, w:'triangle', v:0.07 });
+  ev.push({ t: endT, type:'lead', f: midiF(degMidi(DEG_OF[prog[0]] || 0)), d: 1.8, w: cfg.lead, v: cfg.leadVol });
+  ev.sort((a,b2) => a.t - b2.t);
+  nts.sort((a,b2) => a.t - b2.t);
+  return { events: ev, notes: nts, duration: endT + 2 };
+}
+function generateSong(cfg){
+  return cfg.style === 'pop' ? generatePop(cfg) : generateWalk(cfg);
+}
+
+/* 隨機漫步引擎（和風曲專用）：回傳 {events, notes, duration} */
+function generateWalk(cfg){
+  const rng = mulberry32(cfg.seed);
+  const step = 60 / cfg.bpm / 4;           // 16 分音符長度
+  const spb = cfg.spb || 16;               // 每小節格數（12 = 三拍華爾滋）
+  const scale = cfg.scale, chords = cfg.chords;
+  const ev = [], nts = [];
+  const laneOf = i => Math.round(i * 6 / 9); // 音高 0~9 對應軌道 0~6，低音在左高音在右
+  const pitch = i => 72 + scale[i % 5] + 12 * Math.floor(i / 5);
+  let idx = 4;                             // 旋律音高游標（隨機漫步）
+
+  for (let b = 0; b < cfg.bars; b++){
+    const bar0 = b * spb * step;
+    const chord = chords[b % 4];
+    const intro = b < 2;
+
+    for (const s of cfg.kicks){
+      if (s < spb) ev.push({ t: bar0 + s*step, type:'kick' });
+    }
+    if (!intro){
+      for (const s of cfg.snares){
+        if (s < spb) ev.push({ t: bar0 + s*step, type:'snare' });
+      }
+    }
+    const hatStep = (cfg.hat16 && b >= 8) ? 1 : cfg.hatStep;
+    for (let s = 0; s < spb; s += hatStep){
+      ev.push({ t: bar0 + s*step, type:'hat' });
+    }
+    if (!intro){
+      for (const s of cfg.bassSteps){
+        if (s < spb) ev.push({ t: bar0 + s*step, type:'bass', f: midiF(36 + chord),
+                               d: step*3.4, w: cfg.bassType, v: cfg.bassVol });
+      }
+    }
+
+    if (intro){
+      // 前奏：給玩家幾顆熱身音符，跟著大鼓
+      if (b === 1){
+        nts.push({ t: bar0,                          lane: 3 });
+        nts.push({ t: bar0 + Math.floor(spb/2)*step, lane: 3 });
+      }
+      continue;
+    }
+    // 旋律 ＝ 譜面。八分音符為主，快歌摻一點十六分
+    for (let s = 0; s < spb; s += 2){
+      if (rng() > cfg.density) continue;
+      idx += [-2,-1,-1,0,1,1,2][Math.floor(rng()*7)];
+      idx = Math.max(0, Math.min(9, idx));
+      const t = bar0 + s*step;
+      ev.push({ t, type:'lead', f: midiF(pitch(idx)), d: step*1.8, w: cfg.lead, v: cfg.leadVol });
+      nts.push({ t, lane: laneOf(idx) });
+      if (cfg.hat16 && s < spb - 2 && rng() < 0.16){
+        idx = Math.max(0, Math.min(9, idx + (rng()<0.5?-1:1)));
+        ev.push({ t: t + step, type:'lead', f: midiF(pitch(idx)), d: step*0.9, w: cfg.lead, v: cfg.leadVol });
+        nts.push({ t: t + step, lane: laneOf(idx) });
+      }
+    }
+  }
+  const endT = cfg.bars * spb * step;
+  ev.push({ t: endT, type:'bass', f: midiF(36 + chords[0]), d: 1.6, w: cfg.bassType, v: cfg.bassVol });
+  ev.push({ t: endT, type:'lead', f: midiF(72 + scale[0]), d: 1.6, w: cfg.lead, v: cfg.leadVol });
+  ev.push({ t: endT, type:'lead', f: midiF(72 + scale[2]), d: 1.6, w: cfg.lead, v: cfg.leadVol });
+  ev.sort((a,b2) => a.t - b2.t);
+  nts.sort((a,b2) => a.t - b2.t);
+  return { events: ev, notes: nts, duration: endT + 2 };
+}
+
+/* ============ 合成樂器 ============ */
+function ensureAudio(){
+  if (actx) return;
+  actx = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = actx.createGain();
+  masterGain.gain.value = 0.8;
+  masterGain.connect(actx.destination);
+  const len = actx.sampleRate * 0.3;
+  noiseBuf = actx.createBuffer(1, len, actx.sampleRate);
+  const d = noiseBuf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+}
+function playKick(when){
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(150, when);
+  o.frequency.exponentialRampToValueAtTime(42, when + 0.12);
+  g.gain.setValueAtTime(0.9, when);
+  g.gain.exponentialRampToValueAtTime(0.001, when + 0.24);
+  o.connect(g); g.connect(masterGain);
+  o.start(when); o.stop(when + 0.26);
+}
+function playSnare(when){
+  const s = actx.createBufferSource(), f = actx.createBiquadFilter(), g = actx.createGain();
+  s.buffer = noiseBuf;
+  f.type = 'bandpass'; f.frequency.value = 1900; f.Q.value = 0.8;
+  g.gain.setValueAtTime(0.45, when);
+  g.gain.exponentialRampToValueAtTime(0.001, when + 0.17);
+  s.connect(f); f.connect(g); g.connect(masterGain);
+  s.start(when); s.stop(when + 0.2);
+}
+function playHat(when){
+  const s = actx.createBufferSource(), f = actx.createBiquadFilter(), g = actx.createGain();
+  s.buffer = noiseBuf;
+  f.type = 'highpass'; f.frequency.value = 7200;
+  g.gain.setValueAtTime(0.14, when);
+  g.gain.exponentialRampToValueAtTime(0.001, when + 0.05);
+  s.connect(f); f.connect(g); g.connect(masterGain);
+  s.start(when); s.stop(when + 0.07);
+}
+function playTone(when, freq, dur, type, vol){
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, when);
+  g.gain.linearRampToValueAtTime(vol, when + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.001, when + dur);
+  o.connect(g); g.connect(masterGain);
+  o.start(when); o.stop(when + dur + 0.05);
+}
+function fireEvent(e, absT){
+  if (e.type === 'kick') playKick(absT);
+  else if (e.type === 'snare') playSnare(absT);
+  else if (e.type === 'hat') playHat(absT);
+  else if (e.type === 'bass') playTone(absT, e.f, e.d, e.w || 'triangle', e.v || 0.32);
+  else if (e.type === 'lead') playTone(absT, e.f, e.d, e.w || 'square', e.v || 0.13);
+}
+/* 按鍵回饋音（純音效模式的小彩蛋：每軌一個音高） */
+const TAP_FREQ = [523.25, 587.33, 659.25, 783.99, 880.00, 1046.50, 1318.51];
+function playTap(lane){
+  if (!actx) return;
+  playTone(actx.currentTime, TAP_FREQ[lane], 0.12, 'sine', 0.08);
+}
+
+/* ============ 自訂音樂：節拍偵測 ============ */
+function detectBeats(buf){
+  const data = buf.getChannelData(0);
+  const sr = buf.sampleRate;
+  const hop = 512, win = 1024;
+  const n = Math.max(0, Math.floor((data.length - win) / hop));
+  const energy = new Float32Array(n);
+  for (let i = 0; i < n; i++){
+    let s = 0;
+    const off = i * hop;
+    for (let j = 0; j < win; j += 2){ const v = data[off + j]; s += v * v; }
+    energy[i] = s;
+  }
+  const flux = new Float32Array(n);
+  for (let i = 1; i < n; i++) flux[i] = Math.max(0, energy[i] - energy[i-1]);
+
+  function pick(mult, gap){
+    const out = [];
+    let lastT = -9, lastLane = -1;
+    for (let i = 2; i < n - 2; i++){
+      let mean = 0, c = 0;
+      for (let k = Math.max(0, i-16); k < Math.min(n, i+16); k++){ mean += flux[k]; c++; }
+      mean /= c;
+      const t = (i * hop) / sr;
+      if (flux[i] > mean * mult + 1e-7 &&
+          flux[i] >= flux[i-1] && flux[i] >= flux[i+1] &&
+          t - lastT >= gap && t > 0.4 && t < buf.duration - 0.8){
+        let lane = Math.floor(flux[i] * 1e7) % 7;
+        if (lane === lastLane) lane = (lane + 1 + (i % 5)) % 7;
+        out.push({ t, lane });
+        lastT = t; lastLane = lane;
+      }
+    }
+    return out;
+  }
+  let res = pick(1.6, 0.19);
+  if (res.length < 20) res = pick(1.15, 0.17);
+  return res;
+}
+
+/* ============ 遊戲流程 ============ */
+const $ = id => document.getElementById(id);
+const menuOv = $('menu'), pauseOv = $('pauseOv'), resultOv = $('result');
+
+function resetStats(){
+  score = 0; combo = 0; maxCombo = 0;
+  cnt = { P:0, G:0, M:0 };
+  popups = []; laneFlash = [0,0,0,0];
+  evPtr = 0; ended = false;
+}
+function startSynthSong(i){
+  ensureAudio();
+  actx.resume();
+  const gen = generateSong(SONGS[i]);
+  notes = gen.notes.map(o => ({ t:o.t, lane:o.lane, judged:false }));
+  synthEvents = gen.events;
+  songDuration = gen.duration;
+  customBuffer = null;
+  currentSong = { type:'synth', idx:i };
+  currentBpm = SONGS[i].bpm;
+  beginPlay();
+}
+function estimateBpm(nts){
+  if (nts.length < 8) return 120;
+  const gaps = [];
+  for (let i = 1; i < nts.length; i++) gaps.push(nts[i].t - nts[i-1].t);
+  gaps.sort((a,b) => a - b);
+  let bpm = 60 / Math.max(0.12, gaps[Math.floor(gaps.length/2)]);
+  while (bpm > 190) bpm /= 2;
+  while (bpm < 70) bpm *= 2;
+  return bpm;
+}
+function startCustomSong(){
+  ensureAudio();
+  actx.resume();
+  notes = customNotes.map(o => ({ t:o.t, lane:o.lane, judged:false }));
+  synthEvents = [];
+  songDuration = customBuffer.duration + 1;
+  currentSong = { type:'custom' };
+  currentBpm = estimateBpm(customNotes);
+  beginPlay();
+}
+function beginPlay(){
+  resetStats();
+  startTime = actx.currentTime + 3;
+  if (customBuffer){
+    customSource = actx.createBufferSource();
+    customSource.buffer = customBuffer;
+    customSource.connect(masterGain);
+    customSource.start(startTime);
+  }
+  state = 'play';
+  menuOv.classList.add('hidden');
+  resultOv.classList.add('hidden');
+  pauseOv.classList.add('hidden');
+  $('pauseBtn').classList.remove('hidden');
+}
+function stopCustom(){
+  if (customSource){ try{ customSource.stop(); }catch(e){} customSource = null; }
+}
+function toMenu(){
+  stopCustom();
+  state = 'menu';
+  $('pauseBtn').classList.add('hidden');
+  pauseOv.classList.add('hidden');
+  resultOv.classList.add('hidden');
+  $('board').classList.add('hidden');
+  menuOv.classList.remove('hidden');
+}
+function pauseGame(){
+  if (state !== 'play') return;
+  state = 'pause';
+  actx.suspend();
+  pauseOv.classList.remove('hidden');
+}
+function resumeGame(){
+  if (state !== 'pause') return;
+  pauseOv.classList.add('hidden');
+  state = 'play';
+  actx.resume();
+}
+function finishSong(){
+  ended = true;
+  state = 'result';
+  stopCustom();
+  $('pauseBtn').classList.add('hidden');
+  const total = cnt.P + cnt.G + cnt.M;
+  const acc = total ? (cnt.P + cnt.G * 0.6) / total : 0;
+  const pct = Math.round(acc * 1000) / 10;
+  let rank, comment;
+  if (acc >= 0.95){ rank = '神級'; comment = '神之十指！指哪打哪、拍拍命中，這雙手該保險一億！'; }
+  else if (acc >= 0.90){ rank = '大師'; comment = '快狠準！十根手指跳出殘影，鍵盤都要求饒了。'; }
+  else if (acc >= 0.85){ rank = '高手'; comment = '穩定發揮，指感十足，離指神只差一個指節！'; }
+  else if (acc >= 0.75){ rank = '熟練'; comment = '有模有樣！再練幾局，手指就能出師開課了。'; }
+  else if (acc >= 0.60){ rank = '加油'; comment = '手感熱身中，指續加油，下一局見真章！'; }
+  else { rank = '再戰'; comment = '手指打結了？沒關係——糾結的解法只有一個：再來一局！'; }
+  $('rankBig').textContent = rank;
+  $('resStats').innerHTML =
+    '分數 <b>' + score.toLocaleString() + '</b>　準確率 <b>' + pct + '%</b><br>' +
+    '完美 <b>' + cnt.P + '</b>　不錯 <b>' + cnt.G + '</b>　漏接 <b>' + cnt.M + '</b><br>' +
+    '最大連擊 <b>' + maxCombo + '</b>';
+  $('resComment').textContent = comment;
+  // 結算時才留名上榜：不填就掛名「無名指」
+  submitted = false;
+  $('resRank').textContent = '';
+  if (total > 0){
+    $('playerName').value = lastName;
+    $('submitBtn').disabled = false;
+    $('resUpload').classList.remove('hidden');
+  } else {
+    $('resUpload').classList.add('hidden');
+  }
+  resultOv.classList.remove('hidden');
+}
+
+/* ============ 判定 ============ */
+function judge(lane){
+  if (state !== 'play') return;
+  laneFlash[lane] = 1;
+  playTap(lane);
+  const t = actx.currentTime - startTime;
+  let best = null, bestDiff = 1e9;
+  for (const n of notes){
+    if (n.judged || n.lane !== lane) continue;
+    if (n.t - t > GOOD_WIN) break;
+    const diff = Math.abs(n.t - t);
+    if (diff < bestDiff){ bestDiff = diff; best = n; }
+  }
+  if (!best || bestDiff > GOOD_WIN) return;
+  best.judged = true;
+  if (bestDiff <= PERFECT_WIN){
+    cnt.P++; combo++;
+    score += 1000 + Math.min(combo, 100) * 6;
+    addPopup('完美', '#ff9ed0', lane);
+  } else {
+    cnt.G++; combo++;
+    score += 600 + Math.min(combo, 100) * 3;
+    addPopup('不錯', '#ffd06e', lane);
+  }
+  maxCombo = Math.max(maxCombo, combo);
+}
+function addPopup(text, color, lane){
+  popups.push({ text, color, x: LANE_X0 + lane*LANE_W + LANE_W/2, born: performance.now() });
+}
+
+/* ============ 輸入 ============ */
+window.addEventListener('keydown', e => {
+  if (e.repeat) return;
+  if (e.target && e.target.tagName === 'INPUT') return;  // 打字留名時不搶按鍵
+  if (e.code === 'Escape'){
+    if (state === 'play') pauseGame();
+    else if (state === 'pause') resumeGame();
+    return;
+  }
+  const lane = KEYS.indexOf(e.code);
+  if (lane >= 0){ laneDown[lane] = true; judge(lane); e.preventDefault(); }
+});
+window.addEventListener('keyup', e => {
+  const lane = KEYS.indexOf(e.code);
+  if (lane >= 0) laneDown[lane] = false;
+});
+cv.addEventListener('pointerdown', e => {
+  const r = cv.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width * W;
+  const lane = Math.floor((x - LANE_X0) / LANE_W);
+  if (lane >= 0 && lane < LANES){ laneDown[lane] = true; judge(lane); }
+});
+cv.addEventListener('pointerup', () => { laneDown = [false,false,false,false]; });
+
+$('pauseBtn').addEventListener('click', pauseGame);
+$('resumeBtn').addEventListener('click', resumeGame);
+$('quitBtn').addEventListener('click', toMenu);
+$('backBtn').addEventListener('click', toMenu);
+$('retryBtn').addEventListener('click', () => {
+  if (currentSong && currentSong.type === 'custom') startCustomSong();
+  else if (currentSong) startSynthSong(currentSong.idx);
+});
+
+/* 歌單與速度選擇 */
+const songList = $('songList');
+SONGS.forEach((s, i) => {
+  const b = document.createElement('button');
+  b.className = 'songBtn';
+  b.innerHTML = '<b>' + s.name + '</b><span>' + s.sub + '</span>';
+  b.addEventListener('click', () => startSynthSong(i));
+  songList.appendChild(b);
+});
+document.querySelectorAll('.speedBtn').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.speedBtn').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    speedIdx = +b.dataset.sp;
+  });
+});
+
+/* 上榜與排行榜畫面 */
+$('submitBtn').addEventListener('click', async () => {
+  if (submitted || state !== 'result') return;
+  const name = ($('playerName').value.trim() || '無名指').slice(0, 10);
+  lastName = name;
+  $('submitBtn').disabled = true;
+  $('resRank').textContent = '成績上傳中…';
+  const songName = SONGS[currentSong.idx].name;
+  const total = cnt.P + cnt.G + cnt.M;
+  const pct = total ? Math.round((cnt.P + cnt.G * 0.6) / total * 1000) / 10 : 0;
+  try {
+    const ok = await submitScore({ name: name, score: score, acc: pct, max_combo: maxCombo, song: songName });
+    if (!ok) throw new Error('submit failed');
+    submitted = true;
+    $('resUpload').classList.add('hidden');
+    const rk = await fetchRank(songName, score);
+    $('resRank').textContent = rk ? '🌏 「' + songName + '」全球第 ' + rk + ' 名！' : '🌏 成績已上榜！';
+  } catch(e){
+    $('submitBtn').disabled = false;
+    $('resRank').textContent = '排行榜連線不上，等網路好了再按一次';
+  }
+});
+
+const BOARD_TABS = SONGS.map(s => s.name);
+let boardTab = 0;
+function openBoard(){
+  menuOv.classList.add('hidden');
+  $('board').classList.remove('hidden');
+  const tabs = $('boardTabs');
+  tabs.innerHTML = '';
+  BOARD_TABS.forEach((nm, i) => {
+    const b = document.createElement('button');
+    b.className = 'speedBtn tabBtn' + (i === boardTab ? ' on' : '');
+    b.textContent = nm;
+    b.addEventListener('click', () => { boardTab = i; openBoard(); });
+    tabs.appendChild(b);
+  });
+  loadBoard(BOARD_TABS[boardTab]);
+}
+async function loadBoard(song){
+  const list = $('boardList');
+  list.textContent = '載入中…';
+  try {
+    const rows = await fetchTop(song, 10);
+    if (!rows.length){ list.textContent = '這首歌還沒有人上榜，第一名的位子正在等你！'; return; }
+    const medals = ['🥇','🥈','🥉'];
+    list.innerHTML = rows.map((r, i) =>
+      '<div class="brow"><span class="medal">' + (medals[i] || (i+1)) + '</span>' +
+      '<span class="bname">' + String(r.name).replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])) + '</span>' +
+      '<span class="bscore">' + Number(r.score).toLocaleString() + '</span>' +
+      '<span class="bacc">' + r.acc + '%</span></div>'
+    ).join('');
+  } catch(e){
+    list.textContent = '連不上雲端排行榜，檢查一下網路再試試';
+  }
+}
+$('boardBtn').addEventListener('click', openBoard);
+$('boardBack').addEventListener('click', toMenu);
+
+/* 自訂音樂功能暫時下架——等專屬音樂做好再重新上架
+   （detectBeats / estimateBpm / startCustomSong 引擎都留著，隨時能接回來） */
+let customNotes = [];
+
+/* ============ 畫面 ============ */
+for (let i = 0; i < 40; i++){
+  bgSparks.push({ x: Math.random()*W, y: Math.random()*H, s: Math.random()*1.6+0.4, v: Math.random()*12+4 });
+}
+function drawNote(x, y, lane){
+  const c = LANE_COLORS[lane];
+  const w = LANE_W - 18, h = 20;
+  ctx2d.save();
+  ctx2d.shadowColor = c; ctx2d.shadowBlur = 14;
+  const g = ctx2d.createLinearGradient(x, y - h/2, x, y + h/2);
+  g.addColorStop(0, '#fff6fb');
+  g.addColorStop(0.35, c);
+  g.addColorStop(1, c);
+  ctx2d.fillStyle = g;
+  roundRect(x - w/2, y - h/2, w, h, 10);
+  ctx2d.fill();
+  // 指尖小翹尾
+  ctx2d.strokeStyle = 'rgba(255,255,255,.85)';
+  ctx2d.lineWidth = 2;
+  ctx2d.beginPath();
+  ctx2d.arc(x + w/2 - 6, y - h/2 + 2, 7, Math.PI*1.1, Math.PI*1.7);
+  ctx2d.stroke();
+  ctx2d.restore();
+}
+/* 跳舞的手指小舞者：跟著 BPM 搖擺，連擊高會嗨起來，Miss 會嚇一跳 */
+function drawDancer(t){
+  const beat = Math.max(0, t) * currentBpm / 60;
+  const ph = beat * Math.PI;
+  const bounce = Math.abs(Math.sin(ph));
+  const sway = Math.sin(ph);
+  const hot = combo >= 20;
+  const sad = performance.now() - missFlashT < 450;
+  const cx = W/2, cy = 116 - bounce * (hot ? 14 : 9);
+
+  ctx2d.save();
+  ctx2d.globalAlpha = 0.92;
+  // 影子
+  ctx2d.fillStyle = 'rgba(0,0,0,.28)';
+  ctx2d.beginPath();
+  ctx2d.ellipse(W/2, 178, 26 - bounce*6, 6, 0, 0, Math.PI*2);
+  ctx2d.fill();
+
+  ctx2d.translate(cx, cy);
+  ctx2d.rotate(sway * 0.09);
+
+  // 腿（跟著節拍踢）
+  ctx2d.strokeStyle = '#e8b090';
+  ctx2d.lineWidth = 5; ctx2d.lineCap = 'round';
+  const kick = sway * 7;
+  ctx2d.beginPath(); ctx2d.moveTo(-8, 36); ctx2d.lineTo(-10 + kick, 56); ctx2d.stroke();
+  ctx2d.beginPath(); ctx2d.moveTo(8, 36);  ctx2d.lineTo(10 + kick, 56);  ctx2d.stroke();
+
+  // 手臂（左右輪流甩，嗨的時候舉高高）
+  const lift = hot ? 0.85 : 0.25;
+  const aL = lift + sway * 0.75, aR = lift - sway * 0.75;
+  ctx2d.beginPath(); ctx2d.moveTo(-15, 2);
+  ctx2d.lineTo(-15 - 15*Math.cos(aL), 2 - 15*Math.sin(aL)); ctx2d.stroke();
+  ctx2d.beginPath(); ctx2d.moveTo(15, 2);
+  ctx2d.lineTo(15 + 15*Math.cos(aR), 2 - 15*Math.sin(aR)); ctx2d.stroke();
+
+  // 身體：一根圓滾滾的手指
+  ctx2d.fillStyle = '#ffd9c0';
+  roundRect(-17, -40, 34, 80, 17);
+  ctx2d.fill();
+  ctx2d.strokeStyle = 'rgba(200,130,110,.35)';
+  ctx2d.lineWidth = 1.5;
+  ctx2d.stroke();
+  // 指節紋
+  ctx2d.strokeStyle = 'rgba(200,130,110,.3)';
+  ctx2d.beginPath(); ctx2d.moveTo(-10, 22); ctx2d.quadraticCurveTo(0, 26, 10, 22); ctx2d.stroke();
+
+  // 頭頂指甲（擦了粉紅指甲油，權當瀏海）
+  ctx2d.fillStyle = '#ff8fc0';
+  roundRect(-13, -40, 26, 17, 11);
+  ctx2d.fill();
+  ctx2d.fillStyle = 'rgba(255,255,255,.5)';
+  ctx2d.beginPath(); ctx2d.ellipse(-5, -33, 4, 2.4, -0.4, 0, Math.PI*2); ctx2d.fill();
+
+  // 耳機
+  ctx2d.strokeStyle = '#8a5578'; ctx2d.lineWidth = 3.5;
+  ctx2d.beginPath(); ctx2d.arc(0, -12, 20, Math.PI*1.15, Math.PI*1.85); ctx2d.stroke();
+  ctx2d.fillStyle = '#8a5578';
+  ctx2d.beginPath(); ctx2d.ellipse(-18, -10, 4.5, 7, 0, 0, Math.PI*2); ctx2d.fill();
+  ctx2d.beginPath(); ctx2d.ellipse(18, -10, 4.5, 7, 0, 0, Math.PI*2); ctx2d.fill();
+
+  // 臉
+  ctx2d.strokeStyle = '#4a2338'; ctx2d.lineWidth = 2; ctx2d.lineCap = 'round';
+  if (sad){
+    // Miss：嚇到瞪圓眼
+    ctx2d.fillStyle = '#4a2338';
+    ctx2d.beginPath(); ctx2d.arc(-7, -12, 2.6, 0, Math.PI*2); ctx2d.fill();
+    ctx2d.beginPath(); ctx2d.arc(7, -12, 2.6, 0, Math.PI*2); ctx2d.fill();
+    ctx2d.beginPath(); ctx2d.arc(0, -2, 3.2, 0, Math.PI*2); ctx2d.stroke();
+  } else {
+    // 開心瞇瞇眼
+    ctx2d.beginPath(); ctx2d.arc(-7, -11, 3.5, Math.PI*1.15, Math.PI*1.85); ctx2d.stroke();
+    ctx2d.beginPath(); ctx2d.arc(7, -11, 3.5, Math.PI*1.15, Math.PI*1.85); ctx2d.stroke();
+    ctx2d.beginPath();
+    if (hot){ ctx2d.arc(0, -4, 5, 0.15*Math.PI, 0.85*Math.PI); }
+    else { ctx2d.arc(0, -6, 4, 0.2*Math.PI, 0.8*Math.PI); }
+    ctx2d.stroke();
+  }
+  // 腮紅
+  ctx2d.fillStyle = 'rgba(255,130,170,.4)';
+  ctx2d.beginPath(); ctx2d.ellipse(-11, -4, 3.4, 2.2, 0, 0, Math.PI*2); ctx2d.fill();
+  ctx2d.beginPath(); ctx2d.ellipse(11, -4, 3.4, 2.2, 0, 0, Math.PI*2); ctx2d.fill();
+
+  // 嗨起來的星星
+  if (hot){
+    ctx2d.fillStyle = '#ffd98a';
+    ctx2d.font = '13px sans-serif';
+    ctx2d.textAlign = 'center';
+    const a = beat * 0.9;
+    for (let k = 0; k < 3; k++){
+      const ang = a + k * Math.PI * 2 / 3;
+      ctx2d.fillText('✦', Math.cos(ang) * 38, -8 + Math.sin(ang) * 26);
+    }
+  }
+  ctx2d.restore();
+}
+function roundRect(x, y, w, h, r){
+  ctx2d.beginPath();
+  ctx2d.moveTo(x+r, y);
+  ctx2d.arcTo(x+w, y, x+w, y+h, r);
+  ctx2d.arcTo(x+w, y+h, x, y+h, r);
+  ctx2d.arcTo(x, y+h, x, y, r);
+  ctx2d.arcTo(x, y, x+w, y, r);
+  ctx2d.closePath();
+}
+function render(){
+  requestAnimationFrame(render);
+  // 背景
+  const bg = ctx2d.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#31122f');
+  bg.addColorStop(1, '#1a091c');
+  ctx2d.fillStyle = bg;
+  ctx2d.fillRect(0, 0, W, H);
+  // 星塵
+  ctx2d.fillStyle = 'rgba(255,215,235,.5)';
+  for (const p of bgSparks){
+    ctx2d.globalAlpha = 0.15 + (p.s - 0.4) * 0.3;
+    ctx2d.fillRect(p.x, p.y, p.s, p.s);
+    if (state === 'play'){ p.y += p.v / 60; if (p.y > H){ p.y = -2; p.x = Math.random()*W; } }
+  }
+  ctx2d.globalAlpha = 1;
+
+  if (state !== 'play' && state !== 'pause') return;
+
+  const t = actx.currentTime - startTime;
+  const speed = SPEEDS[speedIdx];
+
+  // 軌道
+  for (let l = 0; l < LANES; l++){
+    const x = LANE_X0 + l * LANE_W;
+    ctx2d.fillStyle = laneDown[l] ? 'rgba(255,180,215,.10)' : 'rgba(255,255,255,.03)';
+    ctx2d.fillRect(x, 0, LANE_W, H);
+    if (laneFlash[l] > 0){
+      const gl = ctx2d.createLinearGradient(0, HIT_Y-160, 0, HIT_Y);
+      gl.addColorStop(0, 'rgba(255,170,210,0)');
+      gl.addColorStop(1, 'rgba(255,190,150,' + (0.35 * laneFlash[l]) + ')');
+      ctx2d.fillStyle = gl;
+      ctx2d.fillRect(x, HIT_Y-160, LANE_W, 160);
+      laneFlash[l] = Math.max(0, laneFlash[l] - 0.07);
+    }
+    ctx2d.strokeStyle = 'rgba(255,190,220,.14)';
+    ctx2d.beginPath(); ctx2d.moveTo(x, 0); ctx2d.lineTo(x, H); ctx2d.stroke();
+  }
+  ctx2d.strokeStyle = 'rgba(255,190,220,.14)';
+  ctx2d.beginPath(); ctx2d.moveTo(LANE_X0 + LANES*LANE_W, 0); ctx2d.lineTo(LANE_X0 + LANES*LANE_W, H); ctx2d.stroke();
+
+  // 跳舞小手指（畫在音符後面）
+  drawDancer(t);
+
+  // 判定線
+  const hl = ctx2d.createLinearGradient(LANE_X0, 0, LANE_X0 + LANES*LANE_W, 0);
+  hl.addColorStop(0, '#ff8fc0'); hl.addColorStop(0.5, '#ffd98a'); hl.addColorStop(1, '#ff8fc0');
+  ctx2d.save();
+  ctx2d.shadowColor = '#ffb3d4'; ctx2d.shadowBlur = 12;
+  ctx2d.fillStyle = hl;
+  ctx2d.fillRect(LANE_X0, HIT_Y - 2, LANES*LANE_W, 4);
+  ctx2d.restore();
+
+  // 按鍵標示
+  for (let l = 0; l < LANES; l++){
+    const x = LANE_X0 + l*LANE_W + LANE_W/2;
+    ctx2d.beginPath();
+    ctx2d.arc(x, HIT_Y + 42, 22, 0, Math.PI*2);
+    ctx2d.fillStyle = laneDown[l] ? LANE_COLORS[l] : 'rgba(255,255,255,.06)';
+    ctx2d.fill();
+    ctx2d.strokeStyle = LANE_COLORS[l]; ctx2d.lineWidth = 1.5; ctx2d.stroke();
+    ctx2d.fillStyle = laneDown[l] ? '#33102e' : '#f3cde0';
+    ctx2d.font = KEY_LABELS[l].length > 1 ? 'bold 11px sans-serif' : 'bold 16px sans-serif';
+    ctx2d.textAlign = 'center'; ctx2d.textBaseline = 'middle';
+    ctx2d.fillText(KEY_LABELS[l], x, HIT_Y + 43);
+  }
+
+  // 音符 + 漏接判定
+  for (const n of notes){
+    if (n.judged) continue;
+    if (n.t < t - MISS_LATE){
+      n.judged = true;
+      cnt.M++; combo = 0;
+      missFlashT = performance.now();
+      addPopup('漏接', '#9b8496', n.lane);
+      continue;
+    }
+    const y = HIT_Y - (n.t - t) * speed;
+    if (y < -30 || y > H + 30) continue;
+    drawNote(LANE_X0 + n.lane*LANE_W + LANE_W/2, y, n.lane);
+  }
+
+  // 音樂排程（內建合成曲）
+  if (state === 'play' && synthEvents.length){
+    while (evPtr < synthEvents.length && synthEvents[evPtr].t < t + 0.35){
+      const at = Math.max(actx.currentTime + 0.005, startTime + synthEvents[evPtr].t);
+      try { fireEvent(synthEvents[evPtr], at); } catch(e){}
+      evPtr++;
+    }
+  }
+
+  // 判定文字
+  const nowMs = performance.now();
+  popups = popups.filter(p => nowMs - p.born < 550);
+  for (const p of popups){
+    const k = (nowMs - p.born) / 550;
+    ctx2d.globalAlpha = 1 - k;
+    ctx2d.fillStyle = p.color;
+    ctx2d.font = 'bold 17px sans-serif';
+    ctx2d.textAlign = 'center';
+    ctx2d.fillText(p.text, p.x, HIT_Y - 70 - k*34);
+  }
+  ctx2d.globalAlpha = 1;
+
+  // 連擊與分數
+  if (combo >= 2){
+    ctx2d.fillStyle = '#ffd98a';
+    ctx2d.font = 'bold 40px sans-serif';
+    ctx2d.textAlign = 'center';
+    ctx2d.fillText(combo, W/2, 200);
+    ctx2d.fillStyle = '#e9aecb';
+    ctx2d.font = '13px sans-serif';
+    ctx2d.fillText('連擊', W/2, 226);
+  }
+  ctx2d.fillStyle = '#ffe9f3';
+  ctx2d.font = 'bold 18px sans-serif';
+  ctx2d.textAlign = 'left';
+  ctx2d.fillText(score.toLocaleString(), 14, 28);
+
+  // 進度條
+  const prog = Math.max(0, Math.min(1, t / songDuration));
+  ctx2d.fillStyle = 'rgba(255,255,255,.1)';
+  ctx2d.fillRect(0, 0, W, 4);
+  ctx2d.fillStyle = '#ff9ed0';
+  ctx2d.fillRect(0, 0, W * prog, 4);
+
+  // 倒數
+  if (t < 0){
+    ctx2d.fillStyle = '#ffd98a';
+    ctx2d.font = 'bold 84px sans-serif';
+    ctx2d.textAlign = 'center';
+    ctx2d.fillText(Math.ceil(-t), W/2, H/2);
+    ctx2d.font = '15px sans-serif';
+    ctx2d.fillStyle = '#e9aecb';
+    ctx2d.fillText('手指就位，準備開跳', W/2, H/2 + 44);
+  }
+
+  // 結束
+  if (!ended && state === 'play' && t > songDuration + 0.8) finishSong();
+}
+render();
+</script>
+</body>
+</html>
